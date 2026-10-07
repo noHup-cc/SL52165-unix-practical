@@ -1,0 +1,811 @@
+---
+title: "Introduction to UNIX and bash shell"
+author: "Jiawei Wang & Jinzheng Ren"
+date: "2025-10-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+Some of the materials originate from the [Introduction to the Unix Command Line](https://cambiotraining.github.io/unix-shell/) with some of the text copied with a few edits.
+
+The **Unix shell** (aka command line) is a powerful and essential tool for researchers, in particular those working in computational disciplines such as bioinformatics and large-scale data analysis. In this course we will explore the basic structure of the Unix operating system and how we can interact with it using a basic set of commands. You will learn how to navigate the filesystem, manipulate text-based data and combine multiple commands to quickly extract information from large data files. You will also learn how to write scripts and use programmatic techniques to automate task repetition.
+
+## How to follow along
+
+- Run Bash commands in a terminal (RStudio Terminal tab, macOS Terminal, or Linux/WSL).
+
+- Code blocks marked {bash} are for the terminal, not the R Console.
+
+## Data
+
+We will use three FASTA files with simplified headers of the form \>ID\|Function\|Name\|Taxa. Place these files in the same directory as this Rmd: `bacteria_protein_1.fa`, `bacteria_protein_2.fa`, `bacteria_protein_3.fa`.
+
+## Basics
+
+### The Unix Shell
+
+The shell is a program where users can type commands. With the shell, it’s possible to invoke complicated programs like bioinformatics software or simple commands that create an empty directory, with only one line of code. The most popular Unix shell is ***Bash***. *Bash* is the default shell on most modern implementations of Unix.
+
+When the shell is first opened, you are presented with a **prompt**, indicating that the shell is waiting for input. A typical prompt on Linux may look like this:
+
+```         
+username@machine:~$
+```
+
+It shows your username, the name of the computer, the location in the filesystem where you are at the moment (more on this later) and the `$`, after which you have a blinking cursor waiting for input. After you type a command, you have to press the Enter ↲ key to execute it.
+
+So let’s try our first command, `ls` which is short for “listing”. This command will list the contents of the current directory:
+
+```{bash}
+ls
+```
+
+You are expected to see four files:
+
+```         
+Intro_to_UNIX_and_bash_shell.Rmd
+bacteria_protein_1.fa
+bacteria_protein_2.fa
+bacteria_protein_3.fa
+```
+
+#### Command options
+
+Commands can often change their behaviour with additional options. Consider the command below as a general example, which we will break down into its component parts:
+
+```{bash}
+ls -l --sort time ./
+
+# Note: --sort=time is a GNU coreutils extension, so it works on Linux but not on macOS/BSD.
+# On macOS, the portable and standard way is:
+# "ls -lt ./" -> list sorted by modification time, newest first
+# "ls -ltr ./" -> list sorted by modification time, oldest first
+```
+
+- `ls` is the **command**.
+
+- `-l` is an **argument** that “switches on” a particular behaviour of the program. In this case it lists the files in a “long” format. These kinds of arguments are also called an **option**, **switch** or **flag**. Options either start with a single dash (`-`) or two dashes (`--`).
+
+- `--sort` is also argument, but it needs a value to indicate how it should change the behaviour of the program. In this case, the option changes how the files are sorted (in our example we specified ‘time’ to sort files by the time they were created or modified).
+
+- `./` is a **positional argument**, which comes at the end of the command. This argument tells the command what to operate on (Here, ./ refers to the current folder. You will learn more about this notation later.).
+
+A command can be called with more than one option and more than one argument: but a command doesn’t always require an argument or an option.
+
+#### Getting help
+
+`ls` has lots of other **options**. We can pass a `--help` option to the command, such as `ls --help`, to find out how to use the command and what options it accepts. (On macOS, use `man ls` instead, since `--help` is not supported.)
+
+Unfortunately, tool documentation is not completely standardised. However, there are some common patterns, which we highlight here.
+
+Take the documentation of this (imaginary) software as an example:
+
+```         
+Bioinfomagic is a tool that magically guesses what you want to do with your raw data.
+
+Usage: 
+ bioinfomagic [options] -o <dir> <file1> … <fileN>
+
+Arguments (mandatory): 
+ -o, --output=PATH  The path to the results 
+                    directory
+
+Options:
+ -t, --threads=N    The number of CPUs to use.
+ --submit           Automatically write and submit 
+                    a manuscript.
+ --help             Print this help message and 
+                    exit.
+```
+
+- Often the `--help` page starts with a short description of the software.
+
+- Then there’s a *usage* example, to give us an idea of how the tool should be run. In this example note that `<` and `>` are used to indicate *user input*. These should not be included in our command. For example, if we wanted our output to be in a directory called `results`:
+
+  - Correct: `-o results`
+
+  - Wrong: `-o <results>`
+
+- This tool can take an arbitrary number of input files, but they have to be at the end of the command. For example:
+
+  - Correct: `bioinfomagic -o results file1.txt file2.txt`
+
+  - Wrong: `bioinfomagic file1.txt file2.txt -o results`
+
+- In this case `[options]` indicates that we can add additional arguments to the command (which are listed further down the help). The order of these named arguments doesn’t matter, for example:
+
+  - Correct: `bioinfomagic --submit -o results file1.txt file2.txt`
+
+  - Correct: `bioinfomagic -o results --submit file1.txt file2.txt`
+
+  - Wrong: `bioinfomagic -o results file1.txt file2.txt --submit` (the input files should be at the end)
+
+- Long and short argument names are equivalent, for example: `-o results` is the same as `--output=results`
+
+This is one example of how the documentation may look like but, as we mentioned above, this is not always standard.
+
+### Files & Folders
+
+The part of the operating system responsible for managing files and directories is called the **filesystem**. It organizes our data into **files**, which hold information, and **directories** (also called **folders**), which hold files or other directories. These directories are organised in a hierarchical way, which we can represent as a tree.
+
+When we use the shell, we need to specify the location of files and directories using an “address” (similarly to how you specify an internet address to reach a given website). Let’s explore this from our shell terminal.\
+First let’s find out where we are by running a command called `pwd` (which stands for “print working directory”). Directories are like *places* - at any time while we are using the shell we are in exactly one place, called our **current working directory**. Commands mostly read and write files in the current working directory, so knowing where you are before running a command is important.
+
+```{bash}
+pwd
+```
+
+Notice how the location of this folder is specified:
+
+- `/` at the start specifies the *root of the filesystem*.
+
+- `/` is a *separator* between the “home” folder and the next folder.
+
+This way of representing file or directory locations is called a **path**.
+
+#### Listing Files
+
+We can see the content of our current directory by running `ls`, which stands for “listing”:
+
+```{bash}
+ls
+```
+
+We can specify the arguments `-l` (l for list) and `-a` (a for all) to list all files in a long listing format with additional information.
+
+```{bash}
+ls -la
+```
+
+We can notice that we have two special files, `.` and `..`, where `.` points to the current directory and `..` points to the parent directory of the current directory. So, `ls -la` is equivalent to `ls -la .`.
+
+```{bash}
+ls -la .
+```
+
+To list files recursively for the parent directory, use the following command.
+
+```{bash}
+ls -R ..
+```
+
+To verify if a file exists in the current directory, you can also use ls:
+
+```{bash}
+ls fileNotExist.txt
+```
+
+If the file exists, its name will be displayed. If it does not, ls will return an error such as "No such file or directory".
+
+#### Creating directories
+
+Now, let’s **create a new directory** called `data` using the command `mkdir` (“make directory”):
+
+```{bash}
+mkdir data
+```
+
+Typing `ls` will show the new "data" directory.
+
+#### Changing Directory
+
+We can change our location to any other location if we want to. The command to change locations is `cd` (“change directory”) followed by a directory name to change our working directory.
+
+```{bash}
+cd data
+```
+
+Here the folder path can be either absolute or relative.
+
+There are two ways to specify directory names:
+
+- An **absolute path** includes the entire path (or location) from the root directory, which is indicated by a leading slash. The leading `/` tells the computer to follow the path from the root of the file system, so it always refers to exactly one directory, no matter where we are when we run the command.
+
+- A **relative path** tries to find that location from where we are (our current directory), rather than from the root of the file system.
+
+```{bash}
+pwd
+```
+
+Remember to execute the commands in the command line instead of this .Rmd file, otherwise we are still in the current directory instead of the data directory. This is because the command only works within a code chunk.
+
+We now know how to go *down* the directory tree, but how do we go *up*? In order to go up, we need to use the special shortcut `..` like this:
+
+```{bash}
+cd ..
+```
+
+`..` is a special directory name meaning “the directory containing this one”, or more succinctly, the **parent** of the current directory.
+
+#### Moving & Renaming
+
+The current directory contains fasta files called `bacteria_protein_1.fa`, `bacteria_protein_2.fa` and `bacteria_protein_3.fa` which we want to move to `data/`. We can use the `mv` ("move") command:
+
+```{bash}
+mv bacteria_protein_1.fa data/bacteria_protein_1.fa
+mv bacteria_protein_2.fa data/bacteria_protein_2.fa
+mv bacteria_protein_3.fa data/bacteria_protein_3.fa
+```
+
+The first argument tells `mv` what we’re “moving”, while the second is where it’s to go.
+
+If we want a new name for this file, let’s change it! Interestingly, we also use the `mv` command to change a file’s name.
+
+Here’s how we would do it:
+
+```{bash}
+mv data/bacteria_protein_1.fa data/bacteria_protein_1.fa.bak
+mv data/bacteria_protein_1.fa.bak data/bacteria_protein_1.fa
+```
+
+In this case, we are “moving” the file to the same place but with a different name. Be careful when specifying the target file name, since `mv` will silently overwrite any existing file with the same name, which could lead to data loss.
+
+The command `mv` also works with directories, and you can use it to move/rename an entire directory just as you use it to move an individual file.
+
+#### Copying Files and Directories
+
+The `cp` command works similarly to `mv`, except it copies a file instead of moving it. For example, let’s make three copies of our `bacteria_protein_1.fa` file under the original directory:
+
+```{bash}
+cp data/bacteria_protein_1.fa data/bacteria_protein_1_v1.fa
+cp data/bacteria_protein_1.fa data/bacteria_protein_1_v10.fa
+cp data/bacteria_protein_1.fa data/bacteria_protein_1_v100.fa
+```
+
+We can also make a copy directly under the current directory:
+
+```{bash}
+cp data/bacteria_protein_1.fa ./bacteria_protein_1.fa
+```
+
+Unlike the `mv` command, the original file remains in its original directory.
+
+Furthermore, to copy a directory instead of a file, we can use `-r` (recursive):
+
+```{bash}
+cp -r data data_copy
+```
+
+#### Copying Directories: Different Cases (Extra)
+
+The behaviour of `cp -r` can change depending on whether you add a trailing slash (`/`) to the source or destination. Let’s look at three common cases:
+
+```         
+# Case 1: copy the entire "data" directory and call it "data_copy"
+cp -r data data_copy
+
+# Case 2: copy "data" into an existing directory "data_copy/"
+cp -r data data_copy/
+
+# Case 3: copy only the *contents* of "data/" into "data_copy"
+cp -r data/ data_copy
+```
+
+#### Removing Files and Directories
+
+The Unix command used to remove or delete files is `rm` (“remove”).
+
+```{bash}
+rm data_copy/bacteria_protein_1.fa
+```
+
+`rm` can remove a directory *and all its contents* if we use the recursive option `-r`, and it will do so *without any confirmation prompts*:
+
+```{bash}
+rm -r data_copy
+```
+
+Given that there is no way to retrieve files deleted using the shell, **`rm -r` should be used with great caution** (you might consider adding the interactive option `rm -r -i`).
+
+To remove *empty* directories, we can also use the `rmdir` command. This is a safer option than `rm -r`, because it will never delete the directory if it contains files, giving us a chance to check whether we really want to delete all its contents.
+
+#### Wildcards
+
+Wildcards are special characters that can be used to access multiple files at once. The most commonly-used wildcard is `*`, which is used to match zero or more characters.
+
+We have several files in `data/` now, called `bacteria_protein_1.fa`, `bacteria_protein_1_v1.fa`,`bacteria_protein_1_v10.fa`, `bacteria_protein_1_v100.fa`, `bacteria_protein_2.fa`, `bacteria_protein_3.fa`.
+
+- `*fa` matches every file that ends with ‘fa’ extension (which are all files).
+
+  - Try typing `ls data/*fa`.
+
+- `bacteria_protein_1*.fa` matches `bacteria_protein_1.fa`, `bacteria_protein_1_v1.fa`, `bacteria_protein_1_v10.fa` and `bacteria_protein_1_v100.fa`.
+
+  - Try typing `ls data/bacteria_protein_1_v*.fa`
+
+Another common wildcard is `?`, which matches any character *exactly once*. For example:
+
+- `bacteria_protein_1_v?00.fa` matches any single character in place of `?`. For example, it would match `bacteria_protein_1_v100.fa` (Here, we only have `bacteria_protein_1_v10.fa`.)
+  - Try typing `ls data/bacteria_protein_1_v?00.fa`
+
+When the shell sees a wildcard, it expands the wildcard to create a list of matching filenames *before* running the command that was asked for. As an exception, if a wildcard expression does not match any file, *Bash* will pass the expression as an argument to the command as it is.
+
+For example typing `ls data/*.pdf` results in a message that there are no files called `*.pdf`.
+
+#### Finding Files
+
+Often, it’s useful to be able to find files that have a particular pattern in their name. We can use the `find` command to achieve this. Here is an example, where we try to find all *fa* files that exist under our current folder:
+
+```{bash}
+find . -type f -name "*.fa"
+```
+
+In this case, we used the option `-type f` to only find **f**iles with the given name. We could use the option `-type d` if we wanted to instead find **d**irectories only. If we wanted to find both files and directories, then we can omit this option.
+
+We used `-name` to specify the name of the file we wanted to search for. Similarly to `ls`, you can use the `*` wildcard to match *any number of characters*. In our example, we used `*.fa` to find all *fasta* files with the *.fa* file extension
+
+### Text Manipulation
+
+Often we want to investigate the content of a file, without having to open it in a text editor. This is especially useful if the file is very large (as is often the case in bioinformatic applications).
+
+For example, let’s take a look at the `bacteria_protein_1.fa` file. We will start by printing the whole content of the file with the `cat` command, which stands for “concatenate” (we will see why it’s called this way in a little while):
+
+```{bash}
+cd data
+cat bacteria_protein_1.fa
+```
+
+Sometimes it is useful to look only at only the top few lines of a file (especially for very large files). We can do this with the `head` command:
+
+```{bash}
+head bacteria_protein_1.fa
+```
+
+By default, `head` prints the first 10 lines of the file. We can change this using the `-n` option, followed by a number, for example:
+
+```{bash}
+head -n 2 bacteria_protein_1.fa
+```
+
+Similarly, we can look at the *bottom* few lines of a file with the `tail` command:
+
+```{bash}
+tail -n 2 bacteria_protein_1.fa
+```
+
+Print lines 5–10:
+
+```{bash}
+sed -n '5,10p' bacteria_protein_1.fa
+```
+
+Finally, if we want to open the file and browse through it, we can use the `less` command:
+
+```{bash}
+less bacteria_protein_1.fa
+```
+
+`less` will open the file and you can use ↑ and ↓ to move line-by-line or the Page Up and Page Down keys to move page-by-page. You can exit `less` by pressing Q (for “quit”). This will bring you back to the console.
+
+#### Count Words/Lines/Characters
+
+Often it can be useful to *count* how many lines, words and characters a file has. We can use the `wc` command for this:
+
+```{bash}
+wc bacteria_protein_1.fa
+```
+
+```         
+     228   228 12949 bacteria_protein_1.fa
+```
+
+In this case, we used the `wc` command to count lines, words and characters (in that order, left-to-right) of the `bacteria_protein_1.fa` file. Often, we only want to count one of these things, and `wc` has options for all of them:
+
+- `-l` counts lines only.
+
+- `-w` counts words only.
+
+- `-c` counts characters only.
+
+For example, the following counts only the number of lines in each file:
+
+```{bash}
+wc -l bacteria_protein_1.fa
+wc -l bacteria_protein_2.fa
+wc -l bacteria_protein_3.fa
+```
+
+#### Combining several files
+
+Earlier, we said that the `cat` command stands for “concatenate”. This is because this command can be used to *concatenate* (combine) several files together. For example, if we wanted to combine `bacteria_protein_1.fa`, `bacteria_protein_2.fa` and `bacteria_protein_3.fa` together:
+
+```{bash}
+cat bacteria_protein_1.fa bacteria_protein_2.fa bacteria_protein_3.fa
+```
+
+#### Redirecting Output
+
+The commands we’ve been using so far, print their output to the terminal. But what if we wanted to save it into a file? We can achieve this by **redirecting** the output of the command to a file using the `>` operator.
+
+```{bash}
+cat bacteria_protein_1.fa bacteria_protein_2.fa bacteria_protein_3.fa > bacteria_protein_all.fa
+wc -l bacteria_protein_all.fa
+```
+
+Now, the output is not printed to the console, but instead sent to a new file. We can check that the file was created with `ls`.
+
+If we use `>` and the output file already exists, its content will be replaced. If what we want to do is *append* the result of the command to the existing file, we can use `>>` instead.
+
+#### Finding Patterns
+
+Sometimes it can be very useful to find lines of a file that match a particular text pattern. We can use the tool `grep` (“global regular expression print”) to achieve this.
+
+Let’s find how the headers of protein sequences ( starting with *\>*) in our `bacteria_protein_all.fa` file:
+
+```{bash}
+grep ">" bacteria_protein_all.fa
+```
+
+We can see the result is all the lines that matched this word pattern.
+
+`grep` has many other options available, which can be useful depending on the result you want to get. See `grep --help` for more information.
+
+### Combining Commands
+
+#### The `|` Pipe
+
+Often we want to perform a series of steps together, where each step requires the data from the last step. This is where one of the shell’s most powerful feature becomes handy: the ease with which it lets us combine existing programs in new ways.
+
+The way we can combine commands together is using a **pipe**, which uses the special operator `|`. Here is our example using a pipe:
+
+```{bash}
+grep ">" bacteria_protein_all.fa | wc -l
+# or
+cat bacteria_protein_all.fa | grep ">" | wc -l
+```
+
+Notice we could either specify the input `grep` or we don’t specify an input to `grep`. In the later case, the input is streamed automatically from one tool to another through the pipe. So, the output of `cat` is sent to `grep` and the output from `grep` is then sent to `wc`.
+
+#### Cut, Sort, Unique & Count
+
+Let’s now explore a few more useful commands to manipulate text that can be combined to quickly answer useful questions about our data.
+
+Let’s start with the command `cut`, which is used to extract sections from each line of its input. For example, let’s say we wanted to retrieve only the third *field* (or column) of our *fa* file:
+
+```{bash}
+grep ">" bacteria_protein_all.fa
+# Protein ID
+grep ">" bacteria_protein_all.fa | cut -d "|" -f 1
+# Protein function
+grep ">" bacteria_protein_all.fa | cut -d "|" -f 2
+# Protein name
+grep ">" bacteria_protein_all.fa | cut -d "|" -f 3
+# Protein Taxa
+grep ">" bacteria_protein_all.fa | cut -d "|" -f 4
+# get more items
+grep ">" bacteria_protein_all.fa | cut -d "|" -f 1,2,4
+
+```
+
+The two options used with this command are:
+
+- `-d` defines the *delimiter* used to separate different parts of the line. Because the protein headers are formatted using "\|", we use "\|" as our delimiter. The *tab* is used as the default delimiter.
+
+- `-f` defines the *field* or part of the line we want to extract. It’s worth knowing that you can specify more than one *field*, so you can get items 1, 2 and 4 you could set `-f 1,2,4`.
+
+The next command we will explore is called `sort`, which sorts the lines of its input *alphabetically* (default) or *numerically* (if using the `-n` option). Let’s combine it with our previous command to see the result:
+
+```{bash}
+grep ">" bacteria_protein_all.fa | cut -d "|" -f 2 | sort
+```
+
+You can see that the output is now sorted alphabetically.
+
+The `sort` command is often used in conjunction with another command: `uniq`. This command returns the unique lines in its input. Importantly, *it only works as intended if the input is sorted*. That’s why it’s often used together with `sort`.
+
+Let’s see it in action, by continuing building our command:
+
+```{bash}
+grep ">" bacteria_protein_all.fa | cut -d "|" -f 2 | sort | uniq
+```
+
+We can see that now the output is de-duplicated, so only unique values are returned.
+
+## Exercise 1
+
+Display and count how many taxa the protein sequences are from.
+
+Tips:
+
+- Retrieve and display the sorted, de-duplicated 4th column from the `bacteria_protein_all.fa` file,
+
+<!-- -->
+
+- Then count the line number of the taxa
+
+## Programming
+
+### Shell Scripts
+
+So far, we have been running commands directly on the console in an interactive way. However, to re-run a series of commands (or an analysis), we can save the commands in a file and execute all those operations again later by typing a single command. The file containing the commands is usually called a **shell script** (you can think of them as small programs).
+
+For example, let’s create a shell script that counts the number of proteins (marked by the header starting with *\>*) in the `bacteria_protein_all.fa` file. We could achieve this with the following command:
+
+```{bash}
+cat bacteria_protein_all.fa | grep "^>" | wc -l
+```
+
+To write a shell script we have to save this command within a text file. But first we need to see how we can create a text file from within the command line.
+
+#### Editing Files
+
+There are many text editors available for programming, but we will cover a simple one that can be called from the command line: `nano`, which is purely based on the terminal.
+
+We can create a file with *Nano* in the following way:
+
+```{bash}
+nano count_protein.sh
+```
+
+This opens a text editor, where you can type the commands you want to save in the file. Note that the mouse does not work with `nano`, you have to use your ← → ↑ ↓ arrow keys to move around.
+
+For now, type this code to your script (or copy-paste it):
+
+```         
+#!/bin/bash
+
+# count the number of lines starting with ">"
+cat bacteria_protein_all.fa | grep "^>" | wc -l
+```
+
+Two things to note about our code:
+
+- We started the script with a special `#!/bin/bash` line, which is known as a [**shebang**](https://en.wikipedia.org/wiki/Shebang_(Unix)). The *shebang* is optional, but in some cases is used to inform that this script should use the program `bash` to be executed.
+
+- The other line starting with the `#` hash character is known as a **comment** and is not executed by `bash` (it is ignored). Comments are extremely useful because they allow us to annotate our code with information about the commands we’re executing.
+
+Once we’re happy with our text, we can press Ctrl+X to exit the program.
+
+As we have made changes to the file, we will be asked the following:
+
+```         
+Save modified buffer?
+ Y Yes
+ N No    ^C Cancel
+```
+
+That’s a slightly strange way that `nano` has of asking if we want to save the file. We can press Y and then we’re asked to confirm the file name. At this point we can press Enter ↵ and this will exit *Nano* and take us back to the console.
+
+#### Running Scripts
+
+Now that we have our script, we can run it using the program `bash`:
+
+```{bash}
+bash count_protein.sh
+```
+
+Which prints the result of running those commands on our screen. In summary, running a shell script is exactly the same as running the commands one-by-one on the shell.
+
+However, saving our commands in a script has some advantages: it serves as a **record** of our analysis, making it more **reproducible** and it allows us to **adapt and reuse** our code to run other similar analysis.
+
+### Arguments & Variables
+
+#### Custom Inputs
+
+When we discussed [Shell scripts](https://cambiotraining.github.io/unix-shell/materials/02-programming/01-scripts.html), we wrote a script that counted the number of proteins (lines starting with *\>*) in the file `bacteria_protein_all.fa`. But what if we wanted to give it as input a file of our choice? We can make our script more versatile by using a special *shell variable* that means “the first argument on the command line”. Here is our new script, modified from the previous section:
+
+```         
+#!/bin/bash
+
+# print a message to the user
+echo "Processing file: $1"
+
+# count the number of lines starting with ">"
+cat "$1" | grep "^>" | wc -l
+```
+
+The main change in our script is that we used a special variable called `$1` to indicate the file that we want to process will be given by the user from the command line. This variable means “the first argument passed to the shell script”. You can use any number of these, for example `$2` would mean “the *second* argument passed to the shell script”. These are known as **positional argument variables**.
+
+Copy the above code into a new file `customized_count_protein.sh`:
+
+```{bash}
+nano customized_count_protein.sh
+```
+
+run the file:
+
+```{bash}
+bash customized_count_protein.sh bacteria_protein_all.fa
+bash customized_count_protein.sh bacteria_protein_1.fa
+bash customized_count_protein.sh bacteria_protein_2.fa
+bash customized_count_protein.sh bacteria_protein_3.fa
+```
+
+This is a much more flexible script, as the input can now be specified by the user.
+
+#### Bash Variables
+
+Variables in *Bash* always start with the `$` symbol. We have already seen the special variables called `$1`, `$2` (which take input from the user). However, we can also create variables ourselves, with the following syntax:
+
+```{bash}
+my_file_name="bacteria_protein_all"
+```
+
+This would create a variable named “my_file_name” containing the text `bacteria_protein_all.fa`. Notice that there should be **no space between the variable name** **(“my_file_name”) and its value (**`bacteria_protein_all`**).**
+
+Once we create a variable, we need to prefix it with `$` every time we want to use it. For example, to see the value stored inside a variable we can use the `echo` command:
+
+```{bash}
+echo "$my_file_name"
+```
+
+Wrapping variables in single or double quotes makes a difference.
+
+When you use double quotes the shell will interpret the values in the variable, as shown in the example above. However, if you use single quotes, the shell will not interpret those variable values, instead printing the text as is:
+
+```{bash}
+echo "My variable is: $my_file_name"
+echo 'My variable is: $my_file_name'
+```
+
+In this case, our variable is storing the name of the file, so we could use it to look at the content of our file:
+
+```{bash}
+grep "^>" "${my_file_name}.fa"
+```
+
+One thing to note here is that we included the variable name within `{}`. The reason is that this allows us to combine the value of a variable with other text.
+
+Take these two examples:
+
+```{bash}
+echo "$my_file_name_copy"
+echo "${my_file_name}_copy"
+```
+
+The first command would give us an empty output because *Bash* would think there is a variable called “my_file_name_copy”, but such a variable does not exist (and by default the shell assumes its value is empty). In the second command, because we included the variable name in `{}`, then this is not a problem.
+
+In conclusion: **always include `{}` when using your variables in scripts**. It is also good practice to always include variables within **double `"` quotes**. The reasons are more subtle, but see this [StackOverflow post](https://stackoverflow.com/a/27701642/5023162) to learn more about it.
+
+#### Variables and Commands
+
+Very often we may want to create a variable with the result of *evaluating a command*. The syntax to do this is:
+
+```         
+variable=$(command)
+```
+
+For example, let’s say we wanted to create a variable that stores the results of the `grep` command we ran earlier:
+
+```{bash}
+num_protein=$(cat ${my_file_name}.fa | grep "^>" | wc -l)
+```
+
+Running this command generates no output. Instead the output of the command is stored inside our variable. We can print the content of the variable with:
+
+```{bash}
+echo "$num_protein"
+```
+
+## Exercise 2
+
+Write a new script called `count_protein_function.sh` that accepts two parameters: the first parameter as a pattern for the interested function (e.g., "Structure") to be counted, and the second parameter as the path of the file to operate on.
+
+Run:
+
+- `bash count_protein_function.sh Structure bacteria_protein_all.fa`
+
+- `bash count_protein_function.sh Defense bacteria_protein_all.fa`
+
+### Loops
+
+#### The `for` Loop
+
+**Loops** are a programming construct which allow us to repeat a command or set of commands for each item in a list. As such they are key to productivity improvements through automation. Similar to wildcards and tab completion, using loops also reduces the amount of typing required (and hence reduces the number of typing mistakes).
+
+Going back to our case suppose we want to use our `count_protein_function.sh` script to count the number of "Structure" in each of the `bacteria_protein_1.fa`, `bacteria_protein_2.fa` and `bacteria_protein_3.fa` files. We know how to run the script for a single file (The results for each line should be the same):
+
+```{bash}
+bash count_protein_function.sh Structure bacteria_protein_1.fa
+bash count_protein_function.sh Structure bacteria_protein_2.fa
+bash count_protein_function.sh Structure bacteria_protein_3.fa
+```
+
+Of course, we could manually then repeat this for each of our files: `bacteria_protein_1.fa`, `bacteria_protein_2.fa`\
+and `bacteria_protein_3.fa`. But what if we had hundreds (or thousands!) of these files? We’ll use a loop to solve this problem, but first let’s look at the general form of a loop:
+
+```         
+for thing in list_of_things
+do
+  operation_using $thing  # Indentation within the loop is not required, but aids legibility
+done
+```
+
+Let’s create a new script called `count_protein_function_loop.sh` (using `nano`), where we apply this idea to our example:
+
+```         
+#!/bin/bash
+
+for filename in bacteria_protein_1.fa bacteria_protein_2.fa bacteria_protein_3.fa
+do
+  bash count_protein_function.sh Structure $filename
+done
+```
+
+Or more simply (This is the normal usage):
+
+```         
+#!/bin/bash
+
+for filename in bacteria_protein_?.fa
+do
+  bash count_protein_function.sh Structure $filename
+done
+```
+
+then run `bash count_protein_function_loop.sh`.
+
+When the shell sees the keyword `for`, it knows to repeat a command (or group of commands) once for each item in a list. Each time the loop runs (called an iteration), an item in the list is assigned in sequence to the **variable** we specify (in this case `filename`). Then, the commands inside the loop are executed, before moving on to the next item in the list. Inside the loop, we call for the variable’s value `$filename`.
+
+## Exercise 3
+
+Write a script called `count_protein_taxa_loop.sh` that takes one parameter as a pattern for the taxa (e.g., "Escherichia_coli") and calls a new script `count_protein_taxa.sh` on `bacteria_protein_?.fa` files using the input pattern.
+
+Run: `bash count_protein_taxa_loop.sh Escherichia_coli`
+
+## Solutions
+
+### Solution to exercise 1
+
+```         
+grep ">" bacteria_protein_all.fa | cut -d "|" -f 4 | sort | uniq
+grep ">" bacteria_protein_all.fa | cut -d "|" -f 4 | sort | uniq | wc -l
+```
+
+### Solution to exercise 2
+
+`count_protein_function.sh`
+
+```         
+#!/bin/bash
+
+# assign the first parameter to the variable 'pattern'
+pattern=$1
+# assign the second parameter to the variable 'file'
+file=$2
+
+# count matches in the 2nd field (Function)
+num_inputs=$(grep ">" $file | cut -d "|" -f 2 | grep $pattern | wc -l)
+
+# print filename and count
+echo "$file: $num_inputs"
+```
+
+### Solution to exercise 3
+
+`count_protein_taxa.sh`
+
+```         
+#!/bin/bash
+
+# assign the first parameter to the variable 'pattern'
+pattern=$1
+# assign the second parameter to the variable 'file'
+file=$2
+
+# count matches in the 4th field (Taxa)
+num_inputs=$(grep ">" "$file" | cut -d "|" -f 4 | grep "$pattern" | wc -l)
+
+# print filename and count
+echo "$file: $num_inputs"
+```
+
+`count_protein_taxa_loop.sh`
+
+```         
+#!/bin/bash
+
+# assign the first parameter to the variable 'pattern'
+pattern=$1
+files = $2
+
+for filename in bacteria_protein_?.fa
+do
+  bash count_protein_taxa.sh $pattern $filename
+done
+```
