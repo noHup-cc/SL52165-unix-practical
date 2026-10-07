@@ -1,0 +1,8 @@
+bash
+coreutils
+grep
+sed
+findutils
+less
+nano
+man-db
